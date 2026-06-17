@@ -34,7 +34,12 @@ export default async function GamePage({
         <Link href="/" className="text-gray-400 hover:text-white text-sm">
           &larr; Back
         </Link>
-        <h1 className="text-lg font-semibold text-white">{puzzle.name}</h1>
+        <div className="text-center">
+          <h1 className="text-lg font-semibold text-white">{puzzle.name}</h1>
+          <span className={`text-xs font-medium ${puzzle.difficulty === "easy" ? "text-green-400" : "text-red-400"}`}>
+            {puzzle.difficulty.toUpperCase()}
+          </span>
+        </div>
         <Link
           href={`/leaderboard?puzzle=${puzzle.id}`}
           className="text-amber-400 hover:text-amber-300 text-sm"
@@ -46,9 +51,11 @@ export default async function GamePage({
       <Board
         puzzleId={puzzle.id}
         initialGrid={maskedGrid}
+        solutionGrid={grid}
         hints={hints}
         width={puzzle.width}
         height={puzzle.height}
+        difficulty={puzzle.difficulty}
       />
     </div>
   );

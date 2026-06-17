@@ -40,7 +40,16 @@ export default async function Home() {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="font-semibold text-white">{puzzle.name}</h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-semibold text-white">{puzzle.name}</h2>
+                    <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                      puzzle.difficulty === "easy"
+                        ? "bg-green-900 text-green-400"
+                        : "bg-red-900 text-red-400"
+                    }`}>
+                      {puzzle.difficulty}
+                    </span>
+                  </div>
                   <p className="text-gray-500 text-sm">
                     {puzzle.width}x{puzzle.height} grid
                   </p>

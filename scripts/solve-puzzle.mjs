@@ -283,7 +283,7 @@ function solve() {
 
     if (usedLetters.size === 26) {
       // Verify all runs are valid words
-      const trimmed = trimGrid(grid);
+      const trimmed = padTo10x10(grid);
       const runs = extractRuns(trimmed);
       if (runs.every(w => WORDS.has(w))) {
         bestSolution = trimmed.map(r => [...r]);
@@ -333,33 +333,54 @@ function solve() {
     return false;
   }
 
-  function trimGrid(g) {
+  function padTo10x10(g) {
     let minR = g.length, maxR = 0, minC = g[0].length, maxC = 0;
     for (let r = 0; r < g.length; r++)
       for (let c = 0; c < g[r].length; c++)
         if (g[r][c]) { minR = Math.min(minR,r); maxR = Math.max(maxR,r); minC = Math.min(minC,c); maxC = Math.max(maxC,c); }
     if (minR > maxR) return [[]];
-    return Array.from({length: maxR-minR+1}, (_, ri) =>
-      Array.from({length: maxC-minC+1}, (_, ci) => g[minR+ri][minC+ci]));
+    const contentH = maxR - minR + 1;
+    const contentW = maxC - minC + 1;
+    if (contentH > 10 || contentW > 10) return null;
+    const padTop = Math.floor((10 - contentH) / 2);
+    const padLeft = Math.floor((10 - contentW) / 2);
+    const result = Array.from({length: 10}, () => Array(10).fill(null));
+    for (let r = minR; r <= maxR; r++)
+      for (let c = minC; c <= maxC; c++)
+        result[padTop + r - minR][padLeft + c - minC] = g[r][c];
+    return result;
   }
 
   console.log("Solving...");
   for (let trial = 0; trial < 50; trial++) {
     attempts = 0;
     if (backtrack(0)) {
-      console.log(`Found solution on trial ${trial+1} after ${attempts} attempts!`);
-      return bestSolution;
+      const padded = padTo10x10(grid);
+      if (padded) {
+        console.log(`Found solution on trial ${trial+1} after ${attempts} attempts!`);
+        return padded;
+      }
     }
     console.log(`Trial ${trial+1}: no solution in ${attempts} attempts`);
   }
   return null;
 }
 
-const result = solve();
-if (result) {
-  verify("Generated Puzzle", result);
-  console.log("\nJSON:");
-  console.log(JSON.stringify(result));
-} else {
-  console.log("No solution found");
+const count = parseInt(process.argv[2]) || 4;
+const results = [];
+for (let i = 0; i < count; i++) {
+  console.log(`\n--- Generating puzzle ${i + 1}/${count} ---`);
+  const result = solve();
+  if (result) {
+    verify(`Puzzle ${i + 1}`, result);
+    results.push(result);
+  }
+}
+if (results.length) {
+  console.log("\n\n========== SEED DATA ==========\n");
+  for (let i = 0; i < results.length; i++) {
+    console.log(`// Puzzle ${i+1}`);
+    console.log(JSON.stringify(results[i]));
+    console.log();
+  }
 }

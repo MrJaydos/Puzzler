@@ -23,7 +23,8 @@ model Puzzle {
   hints     String   // JSON: array of {row, col} positions revealed
   width     Int
   height    Int
-  active    Boolean  @default(true)
+  difficulty String  @default("hard") // "easy" or "hard"
+  active     Boolean @default(true)
   createdAt DateTime @default(now())
   scores    Score[]
 }

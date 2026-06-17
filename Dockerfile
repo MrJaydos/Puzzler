@@ -26,13 +26,10 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
-COPY --from=builder /app/node_modules/better-sqlite3 ./node_modules/better-sqlite3
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/node_modules/dotenv ./node_modules/dotenv
 COPY --from=builder /app/docker-entrypoint.sh ./docker-entrypoint.sh
+COPY --from=builder /app/package.json ./package.json
 
-RUN chmod +x /app/docker-entrypoint.sh
+RUN npm install prisma @prisma/config dotenv better-sqlite3 && chmod +x /app/docker-entrypoint.sh
 RUN mkdir -p /app/data && chown nextjs:nodejs /app/data
 
 USER nextjs

@@ -8,7 +8,11 @@ import Database from "better-sqlite3";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DB_PATH = join(__dirname, "..", "dev.db");
+
+const dbUrl = process.env.DATABASE_URL || "file:./dev.db";
+const DB_PATH = dbUrl.startsWith("file:")
+  ? dbUrl.slice("file:".length)
+  : join(__dirname, "..", "dev.db");
 
 const SEED_PUZZLES = [
   {

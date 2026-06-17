@@ -63,7 +63,8 @@ const SEED_PUZZLES = [
 
 const db = new Database(DB_PATH);
 
-// Clean up old puzzles
+// Clean up old puzzles (delete scores first to avoid FK constraint)
+db.exec("DELETE FROM Score WHERE puzzleId IN (SELECT id FROM Puzzle WHERE id LIKE 'puzzle-%')");
 db.exec("DELETE FROM Puzzle WHERE id LIKE 'puzzle-%'");
 
 const stmt = db.prepare(`

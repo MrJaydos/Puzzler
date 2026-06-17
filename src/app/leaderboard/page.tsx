@@ -3,6 +3,10 @@ import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export default async function LeaderboardPage({
   searchParams,
 }: {
@@ -12,18 +16,34 @@ export default async function LeaderboardPage({
   if (!user) redirect("/login");
 
   const { puzzle: selectedPuzzleId } = await searchParams;
+  const today = todayStr();
 
-  const puzzles = await prisma.puzzle.findMany({
-    where: { active: true },
-    orderBy: { createdAt: "asc" },
-    select: { id: true, name: true },
+  const dailyPuzzles = await prisma.puzzle.findMany({
+    where: { active: true, dailyDate: today },
+    select: { id: true, name: true, dailyDate: true },
   });
 
-  const puzzleId = selectedPuzzleId || puzzles[0]?.id;
+  const regularPuzzles = await prisma.puzzle.findMany({
+    where: { active: true, dailyDate: null },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, name: true, difficulty: true },
+  });
+
+  const allPuzzles = [...dailyPuzzles, ...regularPuzzles];
+  const puzzleId = selectedPuzzleId || dailyPuzzles[0]?.id || regularPuzzles[0]?.id;
+
+  const selectedPuzzle = allPuzzles.find((p) => p.id === puzzleId);
+  const isDaily = dailyPuzzles.some((p) => p.id === puzzleId);
 
   const scores = puzzleId
     ? await prisma.score.findMany({
-        where: { puzzleId, completed: true },
+        where: {
+          puzzleId,
+          completed: true,
+          ...(isDaily ? {
+            createdAt: { gte: new Date(`${today}T00:00:00Z`) },
+          } : {}),
+        },
         orderBy: { time: "asc" },
         take: 50,
         include: { user: { select: { name: true, id: true } } },
@@ -34,21 +54,52 @@ export default async function LeaderboardPage({
     <div className="max-w-2xl mx-auto px-4 py-10">
       <h1 className="text-2xl font-bold text-amber-400 mb-6">Leaderboard</h1>
 
-      <div className="flex gap-2 mb-6 flex-wrap">
-        {puzzles.map((p) => (
-          <Link
-            key={p.id}
-            href={`/leaderboard?puzzle=${p.id}`}
-            className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-              p.id === puzzleId
-                ? "bg-amber-500 text-gray-900 font-medium"
-                : "bg-gray-800 text-gray-400 hover:text-white"
-            }`}
-          >
-            {p.name}
-          </Link>
-        ))}
+      {dailyPuzzles.length > 0 && (
+        <div className="mb-4">
+          <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">Daily</div>
+          <div className="flex gap-2 flex-wrap">
+            {dailyPuzzles.map((p) => (
+              <Link
+                key={p.id}
+                href={`/leaderboard?puzzle=${p.id}`}
+                className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                  p.id === puzzleId
+                    ? "bg-amber-500 text-gray-900 font-medium"
+                    : "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30"
+                }`}
+              >
+                {p.name}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="mb-6">
+        <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">Puzzles</div>
+        <div className="flex gap-2 flex-wrap">
+          {regularPuzzles.map((p) => (
+            <Link
+              key={p.id}
+              href={`/leaderboard?puzzle=${p.id}`}
+              className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                p.id === puzzleId
+                  ? "bg-amber-500 text-gray-900 font-medium"
+                  : "bg-gray-800 text-gray-400 hover:text-white"
+              }`}
+            >
+              {p.name}
+            </Link>
+          ))}
+        </div>
       </div>
+
+      {selectedPuzzle && (
+        <div className="text-sm text-gray-400 mb-4">
+          {selectedPuzzle.name}
+          {isDaily && <span className="text-amber-400 ml-2">(resets daily)</span>}
+        </div>
+      )}
 
       {scores.length > 0 ? (
         <div className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
@@ -69,7 +120,7 @@ export default async function LeaderboardPage({
                   }`}
                 >
                   <td className="px-4 py-3 text-gray-500">
-                    {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
+                    {i === 0 ? "\u{1F947}" : i === 1 ? "\u{1F948}" : i === 2 ? "\u{1F949}" : i + 1}
                   </td>
                   <td className="px-4 py-3 font-medium">
                     {score.user.name}

@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { readFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -8,77 +9,79 @@ const DB_PATH = dbUrl.startsWith("file:")
   ? dbUrl.slice("file:".length)
   : join(__dirname, "..", "dev.db");
 
-const SEED_PUZZLES = [
-  {
-    id: "easy-1-starter",
-    name: "Easy #1 - Starter",
-    difficulty: "easy",
-    grid: JSON.stringify([[null,"J",null,null,null,null,null,null,null,null],["B","A","C","K",null,null,null,null,null,null],[null,"W",null,null,"X",null,null,null,null,null],[null,"S","Q","U","I","D",null,null,null,null],[null,null,null,"M",null,"O","F",null,null,null],[null,null,null,null,null,"Z",null,null,null,null],[null,null,null,null,"V","E","N","T",null,null],[null,null,null,null,null,null,null,"R",null,null],[null,null,null,null,null,"G","L","Y","P","H"],[null,null,null,null,null,null,null,null,null,null]]),
-    hints: JSON.stringify([
-      { row: 1, col: 0 }, { row: 1, col: 1 }, { row: 1, col: 2 }, { row: 1, col: 3 },
-      { row: 3, col: 1 }, { row: 3, col: 2 }, { row: 3, col: 3 }, { row: 3, col: 4 }, { row: 3, col: 5 },
-      { row: 8, col: 5 }, { row: 8, col: 6 }, { row: 8, col: 7 }, { row: 8, col: 8 }, { row: 8, col: 9 },
-    ]),
-    width: 10,
-    height: 10,
-  },
-  {
-    id: "easy-2-warming-up",
-    name: "Easy #2 - Warming Up",
-    difficulty: "easy",
-    grid: JSON.stringify([[null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,"F",null,null],[null,null,null,null,null,null,null,"J",null,null],[null,"K",null,"Z",null,null,"B","O","W","L"],["C","A","G","E",null,"X",null,"R",null,null],[null,null,null,"S","Q","U","I","D",null,null],[null,null,null,"T",null,null,"V",null,null,null],[null,null,null,null,null,"N","Y","M","P","H"],[null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null]]),
-    hints: JSON.stringify([
-      { row: 3, col: 6 }, { row: 3, col: 7 }, { row: 3, col: 8 }, { row: 3, col: 9 },
-      { row: 4, col: 0 }, { row: 4, col: 1 }, { row: 4, col: 2 }, { row: 4, col: 3 },
-      { row: 5, col: 3 }, { row: 5, col: 4 }, { row: 5, col: 5 }, { row: 5, col: 6 }, { row: 5, col: 7 },
-    ]),
-    width: 10,
-    height: 10,
-  },
-  {
-    id: "hard-1-the-web",
-    name: "Hard #1 - The Web",
-    difficulty: "hard",
-    grid: JSON.stringify([[null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,"F",null,null,null],[null,null,null,null,null,null,"J",null,null,null],["B",null,"Z",null,"G",null,"O","W",null,null],["A","X","E",null,"N",null,"R",null,null,null],["C",null,"S","Q","U","I","D",null,null,null],["K",null,"T",null,null,"V",null,null,null,null],[null,null,null,null,"L","Y","M","P","H",null],[null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null]]),
-    hints: JSON.stringify([
-      { row: 3, col: 0 },
-      { row: 5, col: 3 },
-    ]),
-    width: 10,
-    height: 10,
-  },
-  {
-    id: "hard-2-crossfire",
-    name: "Hard #2 - Crossfire",
-    difficulty: "hard",
-    grid: JSON.stringify([[null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,"F",null,null],[null,null,null,null,null,null,null,"J",null,null],[null,"K",null,"Z",null,null,"W","O","M","B"],["V","A","N","E",null,"X",null,"R",null,null],[null,null,null,"S","Q","U","I","D",null,null],[null,null,null,"T",null,null,"C",null,null,null],[null,null,null,null,"G","L","Y","P","H",null],[null,null,null,null,null,null,null,null,null,null],[null,null,null,null,null,null,null,null,null,null]]),
-    hints: JSON.stringify([
-      { row: 4, col: 0 },
-      { row: 7, col: 6 },
-    ]),
-    width: 10,
-    height: 10,
-  },
-];
+const puzzlesPath = join(__dirname, "puzzles.json");
+let grids;
+try {
+  grids = JSON.parse(readFileSync(puzzlesPath, "utf-8"));
+} catch {
+  console.error("Could not read prisma/puzzles.json — run: node scripts/solve-puzzle.mjs 100 prisma/puzzles.json");
+  process.exit(1);
+}
+
+function generateHints(grid, difficulty) {
+  const cells = [];
+  for (let r = 0; r < grid.length; r++)
+    for (let c = 0; c < grid[r].length; c++)
+      if (grid[r][c]) cells.push({ row: r, col: c });
+
+  if (difficulty === "easy") {
+    const shuffled = [...cells].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, Math.ceil(cells.length * 0.5));
+  }
+  const shuffled = [...cells].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, 2);
+}
 
 const db = new Database(DB_PATH);
-
-// Disable FK checks for entire seed — INSERT OR REPLACE does DELETE+INSERT
-// internally which triggers FK constraints from Score table
 db.pragma("foreign_keys = OFF");
 
-db.exec("DELETE FROM Score WHERE puzzleId IN (SELECT id FROM Puzzle WHERE id LIKE 'puzzle-%')");
-db.exec("DELETE FROM Puzzle WHERE id LIKE 'puzzle-%'");
+db.exec("DELETE FROM Score");
+db.exec("DELETE FROM Puzzle");
 
 const stmt = db.prepare(`
-  INSERT OR REPLACE INTO Puzzle (id, name, grid, hints, width, height, difficulty, active, createdAt)
-  VALUES (?, ?, ?, ?, ?, ?, ?, 1, datetime('now'))
+  INSERT INTO Puzzle (id, name, grid, hints, width, height, difficulty, dailyDate, active, createdAt)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'))
 `);
 
-for (const puzzle of SEED_PUZZLES) {
-  stmt.run(puzzle.id, puzzle.name, puzzle.grid, puzzle.hints, puzzle.width, puzzle.height, puzzle.difficulty);
+// First 100 grids: 50 easy + 50 hard regular puzzles
+const regularCount = Math.min(grids.length, 100);
+let easyNum = 1;
+let hardNum = 1;
+let gridIdx = 0;
+
+for (let i = 0; i < regularCount; i++) {
+  const difficulty = i % 2 === 0 ? "easy" : "hard";
+  const num = difficulty === "easy" ? easyNum++ : hardNum++;
+  const id = `${difficulty}-${num}`;
+  const name = `${difficulty === "easy" ? "Easy" : "Hard"} #${num}`;
+  const grid = grids[gridIdx++];
+  const hints = generateHints(grid, difficulty);
+
+  stmt.run(id, name, JSON.stringify(grid), JSON.stringify(hints), 10, 10, difficulty, null);
+}
+
+// Remaining grids (if any): daily puzzles, 2 per day (1 easy, 1 hard)
+// Starting from today, extending into the future
+const today = new Date();
+let dailyIdx = 0;
+while (gridIdx + 1 < grids.length) {
+  const date = new Date(today);
+  date.setDate(date.getDate() + dailyIdx);
+  const dateStr = date.toISOString().slice(0, 10);
+
+  for (const difficulty of ["easy", "hard"]) {
+    if (gridIdx >= grids.length) break;
+    const grid = grids[gridIdx++];
+    const hints = generateHints(grid, difficulty);
+    const id = `daily-${dateStr}-${difficulty}`;
+    const name = `Daily ${difficulty === "easy" ? "Easy" : "Hard"} — ${dateStr}`;
+
+    stmt.run(id, name, JSON.stringify(grid), JSON.stringify(hints), 10, 10, difficulty, dateStr);
+  }
+  dailyIdx++;
 }
 
 db.pragma("foreign_keys = ON");
-console.log("Seeded", SEED_PUZZLES.length, "puzzles successfully");
+const dailyCount = gridIdx - regularCount;
+console.log(`Seeded ${regularCount} regular puzzles + ${dailyCount} daily puzzles`);
 db.close();

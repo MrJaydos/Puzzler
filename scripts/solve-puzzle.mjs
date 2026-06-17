@@ -169,6 +169,7 @@ function solve() {
   const grid = Array.from({length: SIZE}, () => Array(SIZE).fill(null));
   const usedLetters = new Set();
   const placedWords = [];
+  let boundsMinR = SIZE, boundsMaxR = 0, boundsMinC = SIZE, boundsMaxC = 0;
 
   function getCell(r, c) { return (r >= 0 && r < SIZE && c >= 0 && c < SIZE) ? grid[r][c] : null; }
 
@@ -200,6 +201,15 @@ function solve() {
       if (getCell(row-1, col)) return false;
       if (getCell(row + word.length, col)) return false;
     }
+    // Check content would stay within 10x10 bounds
+    let tMinR = boundsMinR, tMaxR = boundsMaxR, tMinC = boundsMinC, tMaxC = boundsMaxC;
+    for (let i = 0; i < word.length; i++) {
+      const r = dir === "H" ? row : row + i;
+      const c = dir === "H" ? col + i : col;
+      tMinR = Math.min(tMinR, r); tMaxR = Math.max(tMaxR, r);
+      tMinC = Math.min(tMinC, c); tMaxC = Math.max(tMaxC, c);
+    }
+    if (tMaxR - tMinR >= 10 || tMaxC - tMinC >= 10) return false;
     // Must cross at least one existing letter (unless first word)
     if (placedWords.length > 0) {
       let crosses = false;
@@ -214,6 +224,7 @@ function solve() {
   }
 
   function placeWord(word, row, col, dir) {
+    const prevBounds = { minR: boundsMinR, maxR: boundsMaxR, minC: boundsMinC, maxC: boundsMaxC };
     const newCells = [];
     for (let i = 0; i < word.length; i++) {
       const r = dir === "H" ? row : row + i;
@@ -222,9 +233,11 @@ function solve() {
         grid[r][c] = word[i];
         usedLetters.add(word[i]);
         newCells.push([r, c]);
+        boundsMinR = Math.min(boundsMinR, r); boundsMaxR = Math.max(boundsMaxR, r);
+        boundsMinC = Math.min(boundsMinC, c); boundsMaxC = Math.max(boundsMaxC, c);
       }
     }
-    placedWords.push({ word, row, col, dir, newCells });
+    placedWords.push({ word, row, col, dir, newCells, prevBounds });
   }
 
   function undoLast() {
@@ -233,6 +246,8 @@ function solve() {
       usedLetters.delete(grid[r][c]);
       grid[r][c] = null;
     }
+    boundsMinR = p.prevBounds.minR; boundsMaxR = p.prevBounds.maxR;
+    boundsMinC = p.prevBounds.minC; boundsMaxC = p.prevBounds.maxC;
   }
 
   // Find the rarest unused letter and words containing it
@@ -282,8 +297,8 @@ function solve() {
     if (attempts > 500000) return false;
 
     if (usedLetters.size === 26) {
-      // Verify all runs are valid words
       const trimmed = padTo10x10(grid);
+      if (!trimmed) return false;
       const runs = extractRuns(trimmed);
       if (runs.every(w => WORDS.has(w))) {
         bestSolution = trimmed.map(r => [...r]);
@@ -366,21 +381,29 @@ function solve() {
   return null;
 }
 
+import { writeFileSync } from "fs";
+
 const count = parseInt(process.argv[2]) || 4;
+const outFile = process.argv[3] || null;
 const results = [];
 for (let i = 0; i < count; i++) {
-  console.log(`\n--- Generating puzzle ${i + 1}/${count} ---`);
+  console.log(`--- Generating puzzle ${i + 1}/${count} ---`);
   const result = solve();
   if (result) {
-    verify(`Puzzle ${i + 1}`, result);
+    const runs = extractRuns(result);
+    console.log(`  OK (${runs.join(", ")})`);
     results.push(result);
+  } else {
+    console.log(`  FAILED, retrying...`);
+    i--;
   }
 }
-if (results.length) {
-  console.log("\n\n========== SEED DATA ==========\n");
+console.log(`\nGenerated ${results.length} puzzles`);
+if (outFile) {
+  writeFileSync(outFile, JSON.stringify(results, null, 2));
+  console.log(`Saved to ${outFile}`);
+} else {
   for (let i = 0; i < results.length; i++) {
-    console.log(`// Puzzle ${i+1}`);
     console.log(JSON.stringify(results[i]));
-    console.log();
   }
 }

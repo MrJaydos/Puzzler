@@ -1,0 +1,42 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  scores       Score[]
+}
+
+model Puzzle {
+  id        String   @id @default(cuid())
+  name      String
+  grid      String   // JSON: 2D array of letters or null
+  hints     String   // JSON: array of {row, col} positions revealed
+  width     Int
+  height    Int
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  scores    Score[]
+}
+
+model Score {
+  id        String   @id @default(cuid())
+  userId    String
+  puzzleId  String
+  time      Int      // seconds to complete
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  puzzle    Puzzle   @relation(fields: [puzzleId], references: [id])
+
+  @@unique([userId, puzzleId])
+}

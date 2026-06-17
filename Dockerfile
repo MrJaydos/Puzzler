@@ -30,7 +30,9 @@ COPY --from=builder /app/node_modules/better-sqlite3 ./node_modules/better-sqlit
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder /app/node_modules/dotenv ./node_modules/dotenv
+COPY --from=builder /app/docker-entrypoint.sh ./docker-entrypoint.sh
 
+RUN chmod +x /app/docker-entrypoint.sh
 RUN mkdir -p /app/data && chown nextjs:nodejs /app/data
 
 USER nextjs
@@ -39,4 +41,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD npx prisma migrate deploy && node server.js
+CMD ["/app/docker-entrypoint.sh"]

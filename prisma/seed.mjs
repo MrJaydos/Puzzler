@@ -63,11 +63,12 @@ const SEED_PUZZLES = [
 
 const db = new Database(DB_PATH);
 
-// Clean up old puzzles — disable FK checks to avoid constraint errors
+// Disable FK checks for entire seed — INSERT OR REPLACE does DELETE+INSERT
+// internally which triggers FK constraints from Score table
 db.pragma("foreign_keys = OFF");
+
 db.exec("DELETE FROM Score WHERE puzzleId IN (SELECT id FROM Puzzle WHERE id LIKE 'puzzle-%')");
 db.exec("DELETE FROM Puzzle WHERE id LIKE 'puzzle-%'");
-db.pragma("foreign_keys = ON");
 
 const stmt = db.prepare(`
   INSERT OR REPLACE INTO Puzzle (id, name, grid, hints, width, height, difficulty, active, createdAt)
@@ -78,5 +79,6 @@ for (const puzzle of SEED_PUZZLES) {
   stmt.run(puzzle.id, puzzle.name, puzzle.grid, puzzle.hints, puzzle.width, puzzle.height, puzzle.difficulty);
 }
 
+db.pragma("foreign_keys = ON");
 console.log("Seeded", SEED_PUZZLES.length, "puzzles successfully");
 db.close();

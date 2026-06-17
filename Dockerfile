@@ -27,6 +27,7 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder /app/docker-entrypoint.sh ./docker-entrypoint.sh
+COPY --from=builder /app/prisma/seed.mjs ./prisma/seed.mjs
 COPY --from=builder /app/package.json ./package.json
 
 RUN npm install prisma @prisma/config dotenv better-sqlite3 && chmod +x /app/docker-entrypoint.sh
